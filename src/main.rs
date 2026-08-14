@@ -1,4 +1,7 @@
 use clap::{Parser, Subcommand};
+use std::fs;
+use std::path::Path;
+use std::process;
 
 #[derive(Parser)]
 #[command(name = "labnet")]
@@ -21,17 +24,38 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    match cli.command {
-        Commands::Up { scenario } => {
-            println!("Starting scenario: {}", scenario);
-        }
+    let (action, scenario) = match cli.command {
+        Commands::Up { scenario } => ("UP", scenario),
 
-        Commands::Down { scenario } => {
-            println!("Stopping scenario: {}", scenario);
-        }
+        Commands::Down { scenario } => ("DOWN", scenario),
 
         Commands::List => {
-            println!("Listing scenarios");
+            list_scenarios();
+            return;
+        }
+    };
+
+    let path = format!("labs/{}", scenario);
+    if !Path::new(&path).is_dir() {
+        eprintln!("Error: Scenario '{}' not found.", scenario);
+        process::exit(1);
+    }
+
+    println!("Action: {} | Scenario: {}", action, scenario);
+}
+
+fn list_scenarios() {
+    match fs::read_dir("labs") {
+        Ok(entries) => {
+            for entry in entries.flatten() {
+                if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                    println!("{}", entry.file_name().to_string_lossy());
+                }
+            }
+        }
+        Err(_) => {
+            eprintln!("Error: 'labs/' directory not found.");
+            process::exit(1);
         }
     }
 }
