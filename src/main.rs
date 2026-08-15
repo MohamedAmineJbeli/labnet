@@ -24,19 +24,21 @@ enum Commands {
 fn main() {
     let cli = Cli::parse();
 
-    let (action, scenario) = match cli.command {
-        Commands::Up { scenario } => ("up", scenario),
+    match cli.command {
+        Commands::Up { scenario } => {
+            let compose_path = validate_scenario(&scenario);
+            run_docker_compose(&compose_path, "up");
+        }
 
-        Commands::Down { scenario } => ("down", scenario),
+        Commands::Down { scenario } => {
+            let compose_path = validate_scenario(&scenario);
+            run_docker_compose(&compose_path, "down");
+        }
 
         Commands::List => {
             list_scenarios();
-            return;
         }
     };
-
-    let compose_path = validate_scenario(&scenario);
-    run_docker_compose(&compose_path, action);
 }
 
 fn validate_scenario(scenario: &str) -> String {
