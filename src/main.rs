@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::fs;
 use std::path::Path;
-use std::process;
+use std::process::{Command, exit};
 
 #[derive(Parser)]
 #[command(name = "labnet")]
@@ -25,9 +25,9 @@ fn main() {
     let cli = Cli::parse();
 
     let (action, scenario) = match cli.command {
-        Commands::Up { scenario } => ("UP", scenario),
+        Commands::Up { scenario } => ("up", scenario),
 
-        Commands::Down { scenario } => ("DOWN", scenario),
+        Commands::Down { scenario } => ("down", scenario),
 
         Commands::List => {
             list_scenarios();
@@ -35,13 +35,49 @@ fn main() {
         }
     };
 
-    let path = format!("labs/{}", scenario);
-    if !Path::new(&path).is_dir() {
+    let compose_path = validate_scenario(&scenario);
+    run_docker_compose(&compose_path, action);
+}
+
+fn validate_scenario(scenario: &str) -> String {
+    let dir_path = format!("labs/{}", scenario);
+    if !Path::new(&dir_path).is_dir() {
         eprintln!("Error: Scenario '{}' not found.", scenario);
-        process::exit(1);
+        exit(1);
     }
 
-    println!("Action: {} | Scenario: {}", action, scenario);
+    let compose_path = format!("{}/docker-compose.yml", dir_path);
+    if !Path::new(&compose_path).is_file() {
+        eprintln!(
+            "Error: docker-compose.yml not found in scenario '{}'.",
+            scenario
+        );
+        exit(1);
+    }
+    compose_path
+}
+
+fn run_docker_compose(compose_path: &str, action: &str) {
+    let args = match action {
+        "up" => vec!["compose", "-f", compose_path, "up", "-d"],
+        "down" => vec!["compose", "-f", compose_path, "down"],
+        _ => {
+            eprintln!("Error: Invalid action '{}'.", action);
+            exit(1);
+        }
+    };
+
+    match Command::new("docker").args(&args).status() {
+        Ok(exit_status) => {
+            if !exit_status.success() {
+                exit(1);
+            }
+        }
+        Err(e) => {
+            eprintln!("Error: Failed to execute docker. {}", e);
+            exit(1);
+        }
+    }
 }
 
 fn list_scenarios() {
@@ -55,7 +91,7 @@ fn list_scenarios() {
         }
         Err(_) => {
             eprintln!("Error: 'labs/' directory not found.");
-            process::exit(1);
+            exit(1);
         }
     }
 }
