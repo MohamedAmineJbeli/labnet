@@ -28,6 +28,12 @@ fn main() {
         Commands::Up { scenario } => {
             let compose_path = validate_scenario(&scenario);
             run_docker_compose(&compose_path, "up");
+
+            let mission_path = format!("labs/{}/MISSION.md", scenario);
+            match fs::read_to_string(&mission_path) {
+                Ok(content) => println!("\n{}\n", content),
+                Err(_) => println!("Note: No MISSION.md found for this scenario."),
+            }
         }
 
         Commands::Down { scenario } => {
