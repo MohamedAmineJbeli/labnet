@@ -7,11 +7,13 @@ Labnet uses Docker Compose to start isolated, pre-configured security scenarios 
 ## Prequisites
 
 * [Docker](https://docs.docker.com/get-started/get-docker/) (and Docker Compose)
-* [Rust](https://rust-lang.org/tools/install/)
 
-## Building
+## Installation
+Pre-compiled binaries for Linux, macOS, and Windows are available on the [Releases](../../releases) page.
 
-Clone the repository and build the release binary:
+## Building from source
+
+If you prefer to build from source or want to contribute, you need [Rust](https://rust-lang.org/tools/install/) installed.
 ```bash
 git clone https://github.com/MohamedAmineJbeli/labnet.git
 cd labnet
