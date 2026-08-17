@@ -19,6 +19,10 @@ enum Commands {
     Down { scenario: String },
     /// List available lab scenarios
     List,
+    /// Print hints for a lab scenario
+    Hint { scenario: String },
+    /// Print the solution for a lab scenario
+    Solution { scenario: String },
 }
 
 fn main() {
@@ -43,6 +47,30 @@ fn main() {
 
         Commands::List => {
             list_scenarios();
+        }
+
+        Commands::Hint { scenario } => {
+            let _ = validate_scenario(&scenario);
+            let hint_path = format!("labs/{}/HINTS.md", scenario);
+            match fs::read_to_string(&hint_path) {
+                Ok(content) => println!("{}", content),
+                Err(_) => {
+                    eprintln!("Error: No HINTS.md found for scenario '{}'.", scenario);
+                    exit(1);
+                }
+            }
+        }
+
+        Commands::Solution { scenario } => {
+            let _ = validate_scenario(&scenario);
+            let solution_path = format!("labs/{}/SOLUTION.md", scenario);
+            match fs::read_to_string(&solution_path) {
+                Ok(content) => println!("{}", content),
+                Err(_) => {
+                    eprintln!("Error: No SOLUTION.md found for scenario '{}'.", scenario);
+                    exit(1);
+                }
+            }
         }
     };
 }
