@@ -1,6 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::fs;
 use std::path::Path;
+use std::path::PathBuf;
 use std::process::{Command, exit};
 
 #[derive(Parser)]
@@ -23,6 +24,12 @@ enum Commands {
     Hint { scenario: String },
     /// Print the solution for a lab scenario
     Solution { scenario: String },
+    /// Mark a lab scenario as completed or undo completion
+    Complete {
+        scenario: String,
+        #[arg(long)]
+        undo: bool,
+    },
 }
 
 fn main() {
@@ -72,6 +79,33 @@ fn main() {
                 }
             }
         }
+
+        Commands::Complete { scenario, undo } => {
+            let _ = validate_scenario(&scenario);
+            let mut completed = read_completed();
+
+            if undo {
+                let initial_len = completed.len();
+                completed.retain(|s| s != &scenario);
+                if completed.len() == initial_len {
+                    eprintln!("Error: Scenario '{}' is not marked as completed.", scenario);
+                    exit(1);
+                }
+                write_completed(&completed);
+                println!("Scenario '{}' set as incomplete.", scenario);
+            } else {
+                if completed.contains(&scenario) {
+                    println!(
+                        "Note: Scenario '{}' is already marked as completed.",
+                        scenario
+                    );
+                } else {
+                    completed.push(scenario.clone());
+                    write_completed(&completed);
+                    println!("Scenario '{}' marked as completed.", scenario);
+                }
+            }
+        }
     };
 }
 
@@ -117,11 +151,21 @@ fn run_docker_compose(compose_path: &str, action: &str) {
 }
 
 fn list_scenarios() {
+    let completed = read_completed();
+    if completed.is_empty() {
+        println!("Note: No labs completed yet.");
+    }
+
     match fs::read_dir("labs") {
         Ok(entries) => {
             for entry in entries.flatten() {
                 if entry.file_type().is_ok_and(|t| t.is_dir()) {
-                    println!("{}", entry.file_name().to_string_lossy());
+                    let name = entry.file_name().to_string_lossy().to_string();
+                    if completed.contains(&name) {
+                        println!("[COMPLETED] {}", name);
+                    } else {
+                        println!("{}", name);
+                    }
                 }
             }
         }
@@ -129,5 +173,53 @@ fn list_scenarios() {
             eprintln!("Error: 'labs/' directory not found.");
             exit(1);
         }
+    }
+}
+
+fn get_state_path() -> PathBuf {
+    let home = match dirs::home_dir() {
+        Some(h) => h,
+        None => {
+            eprintln!("Error: Could not determine home directory.");
+            exit(1);
+        }
+    };
+    home.join(".labnet/state.json")
+}
+
+fn read_completed() -> Vec<String> {
+    let path = get_state_path();
+    match fs::read_to_string(&path) {
+        Ok(contents) => match serde_json::from_str(&contents) {
+            Ok(data) => data,
+            Err(e) => {
+                eprintln!("Error: Failed to parse state file. {}", e);
+                exit(1);
+            }
+        },
+        Err(_) => Vec::new(),
+    }
+}
+
+fn write_completed(completed: &[String]) {
+    let path = get_state_path();
+    if let Some(parent) = path.parent()
+        && let Err(e) = fs::create_dir_all(parent)
+    {
+        eprintln!("Error: Failed to create state directory. {}", e);
+        exit(1);
+    }
+
+    let json = match serde_json::to_string_pretty(completed) {
+        Ok(j) => j,
+        Err(e) => {
+            eprintln!("Error: Failed to serialize state. {}", e);
+            exit(1);
+        }
+    };
+
+    if let Err(e) = fs::write(&path, json) {
+        eprintln!("Error: Failed to write state file. {}", e);
+        exit(1);
     }
 }
