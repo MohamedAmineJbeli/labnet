@@ -30,6 +30,8 @@ enum Commands {
         #[arg(long)]
         undo: bool,
     },
+    /// Show running and completed status of all scenarios
+    Status,
 }
 
 fn main() {
@@ -106,6 +108,40 @@ fn main() {
                 }
             }
         }
+
+        Commands::Status => {
+            let completed = read_completed();
+            let running = get_running_labs();
+
+            match fs::read_dir("labs") {
+                Ok(entries) => {
+                    for entry in entries.flatten() {
+                        if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                            let name = entry.file_name().to_string_lossy().to_string();
+                            let is_running = running.contains(&name);
+                            let is_completed = completed.contains(&name);
+
+                            let mut status = String::new();
+                            if is_running {
+                                status.push_str("[RUNNING] ");
+                            } else {
+                                status.push_str("[STOPPED] ");
+                            }
+
+                            if is_completed {
+                                status.push_str("[COMPLETED] ");
+                            }
+
+                            println!("{}{}", status, name);
+                        }
+                    }
+                }
+                Err(_) => {
+                    eprintln!("Error: 'labs/' directory not found.");
+                    exit(1);
+                }
+            }
+        }
     };
 }
 
@@ -174,6 +210,29 @@ fn list_scenarios() {
             exit(1);
         }
     }
+}
+
+fn get_running_labs() -> Vec<String> {
+    let mut running = Vec::new();
+    if let Ok(entries) = fs::read_dir("labs") {
+        for entry in entries.flatten() {
+            if entry.file_type().is_ok_and(|t| t.is_dir()) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let compose_path = format!("labs/{}/docker-compose.yml", name);
+
+                match Command::new("docker")
+                    .args(["compose", "-f", &compose_path, "ps", "--quiet"])
+                    .output()
+                {
+                    Ok(output) if output.status.success() && !output.stdout.is_empty() => {
+                        running.push(name);
+                    }
+                    _ => continue,
+                }
+            }
+        }
+    }
+    running
 }
 
 fn get_state_path() -> PathBuf {
