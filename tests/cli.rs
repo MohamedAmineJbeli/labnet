@@ -90,6 +90,25 @@ impl Fixture {
         fs::create_dir_all(&dir).unwrap();
         fs::write(dir.join("state.json"), bytes).unwrap();
     }
+
+    #[cfg(unix)]
+    fn fake_docker(&self) -> (PathBuf, PathBuf) {
+        use std::os::unix::fs::PermissionsExt;
+
+        let bin = self.root.join("bin");
+        fs::create_dir_all(&bin).unwrap();
+        let script = bin.join("docker");
+        fs::write(
+            &script,
+            "#!/bin/sh\nprintf '%s\\n' \"$@\" >> \"$DOCKER_LOG\"\nif [ \"$4\" = \"ps\" ]; then\n  case \"$3\" in\n    */alpha/*) printf 'container-id\\n' ;;\n  esac\nfi\n",
+        )
+        .unwrap();
+        let mut permissions = fs::metadata(&script).unwrap().permissions();
+        permissions.set_mode(0o755);
+        fs::set_permissions(&script, permissions).unwrap();
+
+        (bin, self.root.join("docker.log"))
+    }
 }
 
 impl Drop for Fixture {
@@ -227,4 +246,49 @@ fn runs_from_archive_layout() {
     let output = fixture.run(&["list"]);
     assert_success(&output);
     assert!(stdout(&output).contains("alpha"));
+}
+
+#[cfg(unix)]
+#[test]
+fn up_and_down_invoke_docker_compose() {
+    let fixture = Fixture::new("docker-lifecycle");
+    let (bin, log) = fixture.fake_docker();
+    let envs = [("PATH", bin.as_os_str()), ("DOCKER_LOG", log.as_os_str())];
+    let compose = fixture.root.join("labs/alpha/docker-compose.yml");
+
+    let output = fixture.run_with_env(&["up", "alpha"], &envs);
+    assert_success(&output);
+    assert!(stdout(&output).contains("Alpha mission"));
+    assert_eq!(
+        fs::read_to_string(&log)
+            .unwrap()
+            .lines()
+            .collect::<Vec<_>>(),
+        vec!["compose", "-f", compose.to_str().unwrap(), "up", "-d"]
+    );
+
+    fs::remove_file(&log).unwrap();
+    let output = fixture.run_with_env(&["down", "alpha"], &envs);
+    assert_success(&output);
+    assert_eq!(
+        fs::read_to_string(&log)
+            .unwrap()
+            .lines()
+            .collect::<Vec<_>>(),
+        vec!["compose", "-f", compose.to_str().unwrap(), "down"]
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn status_detects_running_scenario() {
+    let fixture = Fixture::new("status-running");
+    let (bin, log) = fixture.fake_docker();
+    let envs = [("PATH", bin.as_os_str()), ("DOCKER_LOG", log.as_os_str())];
+
+    let output = fixture.run_with_env(&["status"], &envs);
+    assert_success(&output);
+    let out = stdout(&output);
+    assert!(out.contains("[RUNNING] alpha"), "stdout: {out}");
+    assert!(out.contains("[STOPPED] zeta"), "stdout: {out}");
 }
