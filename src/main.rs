@@ -1,7 +1,6 @@
 use clap::{Parser, Subcommand};
 use std::fs;
-use std::path::Path;
-use std::path::PathBuf;
+use std::path::{Component, Path, PathBuf};
 use std::process::{Command, exit};
 
 #[derive(Parser)]
@@ -137,7 +136,20 @@ fn main() {
     };
 }
 
+fn is_valid_scenario_name(name: &str) -> bool {
+    let mut components = Path::new(name).components();
+
+    !name.contains('\\')
+        && matches!(components.next(), Some(Component::Normal(_)))
+        && components.next().is_none()
+}
+
 fn validate_scenario(labs: &Path, scenario: &str) -> PathBuf {
+    if !is_valid_scenario_name(scenario) {
+        eprintln!("Error: Invalid scenario name '{}'.", scenario);
+        exit(1);
+    }
+
     let dir_path = labs.join(scenario);
     if !dir_path.is_dir() {
         eprintln!("Error: Scenario '{}' not found.", scenario);
@@ -338,5 +350,16 @@ mod tests {
     #[test]
     fn missing_labs_directory_returns_none() {
         assert_eq!(resolve_labs_dir(None, Path::new("missing")), None);
+    }
+
+    #[test]
+    fn scenario_names_cannot_escape_labs_directory() {
+        assert!(is_valid_scenario_name("dvwa"));
+        assert!(!is_valid_scenario_name(""));
+        assert!(!is_valid_scenario_name("."));
+        assert!(!is_valid_scenario_name(".."));
+        assert!(!is_valid_scenario_name("../dvwa"));
+        assert!(!is_valid_scenario_name("a/b"));
+        assert!(!is_valid_scenario_name("a\\b"));
     }
 }
