@@ -6,6 +6,7 @@ use std::process::{Command, exit};
 
 #[derive(Parser)]
 #[command(name = "labnet")]
+#[command(version)]
 #[command(about = "A local cybersecurity lab generator", long_about = None)]
 struct Cli {
     #[command(subcommand)]
