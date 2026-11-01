@@ -9,7 +9,10 @@ Labnet uses Docker Compose to start isolated, pre-configured security scenarios 
 * [Docker](https://docs.docker.com/get-started/get-docker/) (and Docker Compose)
 
 ## Installation
-Pre-compiled binaries for Linux, macOS, and Windows are available on the [Releases](../../releases) page.
+
+Pre-compiled archives for Linux, macOS, and Windows are available on the [Releases](../../releases) page. Each archive contains the `labnet` binary and the `labs/` directory.
+
+Extract the archive and run the binary. Keep `labs/` next to the executable; LabNet looks there first.
 
 ## Building from source
 

@@ -15,13 +15,13 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
-            artifact: labnet-linux-x86_64
+            archive: labnet-linux-x86_64.tar.gz
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact: labnet-windows-x86_64.exe
+            archive: labnet-windows-x86_64.zip
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact: labnet-macos-x86_64
+            archive: labnet-macos-x86_64.tar.gz
 
     runs-on: ${{ matrix.os }}
 
@@ -37,14 +37,25 @@ jobs:
       - name: Build release binary
         run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package binary
+      - name: Package release archive (Unix)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
-          src="target/${{ matrix.target }}/release/labnet${{ matrix.os == 'windows-latest' && '.exe' || '' }}"
-          dest="${{ matrix.artifact }}"
-          cp "$src" "$dest"
+          mkdir -p dist/labnet
+          cp "target/${{ matrix.target }}/release/labnet" dist/labnet/
+          cp -r labs dist/labnet/
+          tar -czf "${{ matrix.archive }}" -C dist labnet
 
-      - name: Upload binary to release
+      - name: Package release archive (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist/labnet | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/labnet.exe" dist/labnet/
+          Copy-Item -Recurse -Path labs -Destination dist/labnet
+          Compress-Archive -Path dist/labnet -DestinationPath "${{ matrix.archive }}"
+
+      - name: Upload archive to release
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ matrix.artifact }}
+          files: ${{ matrix.archive }}
