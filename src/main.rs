@@ -111,35 +111,25 @@ fn main() {
 
         Commands::Status => {
             let completed = read_completed();
-            let running = get_running_labs();
+            let scenarios = scenario_names();
+            let running = get_running_labs(&scenarios);
 
-            match fs::read_dir("labs") {
-                Ok(entries) => {
-                    for entry in entries.flatten() {
-                        if entry.file_type().is_ok_and(|t| t.is_dir()) {
-                            let name = entry.file_name().to_string_lossy().to_string();
-                            let is_running = running.contains(&name);
-                            let is_completed = completed.contains(&name);
+            for name in scenarios {
+                let is_running = running.contains(&name);
+                let is_completed = completed.contains(&name);
 
-                            let mut status = String::new();
-                            if is_running {
-                                status.push_str("[RUNNING] ");
-                            } else {
-                                status.push_str("[STOPPED] ");
-                            }
-
-                            if is_completed {
-                                status.push_str("[COMPLETED] ");
-                            }
-
-                            println!("{}{}", status, name);
-                        }
-                    }
+                let mut status = String::new();
+                if is_running {
+                    status.push_str("[RUNNING] ");
+                } else {
+                    status.push_str("[STOPPED] ");
                 }
-                Err(_) => {
-                    eprintln!("Error: 'labs/' directory not found.");
-                    exit(1);
+
+                if is_completed {
+                    status.push_str("[COMPLETED] ");
                 }
+
+                println!("{}{}", status, name);
             }
         }
     };
@@ -186,50 +176,54 @@ fn run_docker_compose(compose_path: &str, action: &str) {
     }
 }
 
+fn is_scenario_dir(path: &Path) -> bool {
+    path.is_dir() && path.join("docker-compose.yml").is_file()
+}
+
+fn scenario_names() -> Vec<String> {
+    let entries = match fs::read_dir("labs") {
+        Ok(entries) => entries,
+        Err(_) => {
+            eprintln!("Error: 'labs/' directory not found.");
+            exit(1);
+        }
+    };
+
+    entries
+        .flatten()
+        .filter(|entry| is_scenario_dir(&entry.path()))
+        .map(|entry| entry.file_name().to_string_lossy().into_owned())
+        .collect()
+}
+
 fn list_scenarios() {
     let completed = read_completed();
     if completed.is_empty() {
         println!("Note: No labs completed yet.");
     }
 
-    match fs::read_dir("labs") {
-        Ok(entries) => {
-            for entry in entries.flatten() {
-                if entry.file_type().is_ok_and(|t| t.is_dir()) {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    if completed.contains(&name) {
-                        println!("[COMPLETED] {}", name);
-                    } else {
-                        println!("{}", name);
-                    }
-                }
-            }
-        }
-        Err(_) => {
-            eprintln!("Error: 'labs/' directory not found.");
-            exit(1);
+    for name in scenario_names() {
+        if completed.contains(&name) {
+            println!("[COMPLETED] {}", name);
+        } else {
+            println!("{}", name);
         }
     }
 }
 
-fn get_running_labs() -> Vec<String> {
+fn get_running_labs(scenarios: &[String]) -> Vec<String> {
     let mut running = Vec::new();
-    if let Ok(entries) = fs::read_dir("labs") {
-        for entry in entries.flatten() {
-            if entry.file_type().is_ok_and(|t| t.is_dir()) {
-                let name = entry.file_name().to_string_lossy().to_string();
-                let compose_path = format!("labs/{}/docker-compose.yml", name);
+    for name in scenarios {
+        let compose_path = format!("labs/{}/docker-compose.yml", name);
 
-                match Command::new("docker")
-                    .args(["compose", "-f", &compose_path, "ps", "--quiet"])
-                    .output()
-                {
-                    Ok(output) if output.status.success() && !output.stdout.is_empty() => {
-                        running.push(name);
-                    }
-                    _ => continue,
-                }
+        match Command::new("docker")
+            .args(["compose", "-f", &compose_path, "ps", "--quiet"])
+            .output()
+        {
+            Ok(output) if output.status.success() && !output.stdout.is_empty() => {
+                running.push(name.clone());
             }
+            _ => continue,
         }
     }
     running
@@ -280,5 +274,16 @@ fn write_completed(completed: &[String]) {
     if let Err(e) = fs::write(&path, json) {
         eprintln!("Error: Failed to write state file. {}", e);
         exit(1);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn template_directory_is_not_a_scenario() {
+        assert!(is_scenario_dir(Path::new("labs/dvwa")));
+        assert!(!is_scenario_dir(Path::new("labs/template")));
     }
 }
