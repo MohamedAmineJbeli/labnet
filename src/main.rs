@@ -235,11 +235,13 @@ fn scenario_names(labs: &Path) -> Vec<String> {
         }
     };
 
-    entries
+    let mut names: Vec<String> = entries
         .flatten()
         .filter(|entry| is_scenario_dir(&entry.path()))
         .map(|entry| entry.file_name().to_string_lossy().into_owned())
-        .collect()
+        .collect();
+    names.sort();
+    names
 }
 
 fn list_scenarios(labs: &Path) {

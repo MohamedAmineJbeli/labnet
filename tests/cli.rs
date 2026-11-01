@@ -22,6 +22,10 @@ impl Fixture {
         fs::create_dir_all(&home).unwrap();
         fs::create_dir_all(&elsewhere).unwrap();
 
+        let zeta = root.join("labs/zeta");
+        fs::create_dir_all(&zeta).unwrap();
+        fs::write(zeta.join("docker-compose.yml"), "").unwrap();
+
         let lab = root.join("labs/alpha");
         fs::create_dir_all(&lab).unwrap();
         fs::write(lab.join("docker-compose.yml"), "").unwrap();
@@ -102,6 +106,18 @@ fn list_excludes_directories_without_compose_file() {
     let out = stdout(&output);
     assert!(out.contains("alpha"), "stdout: {out}");
     assert!(!out.contains("template"), "stdout: {out}");
+}
+
+#[test]
+fn list_is_sorted_alphabetically() {
+    let fixture = Fixture::new("list-order");
+
+    let output = fixture.run(&["list"]);
+    assert_success(&output);
+    let out = stdout(&output);
+    let alpha = out.find("alpha").unwrap();
+    let zeta = out.find("zeta").unwrap();
+    assert!(alpha < zeta, "stdout: {out}");
 }
 
 #[cfg(unix)]
