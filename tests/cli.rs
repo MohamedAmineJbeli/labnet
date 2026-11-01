@@ -52,17 +52,24 @@ impl Fixture {
     }
 
     fn run(&self, args: &[&str]) -> Output {
+        self.run_with_env(args, &[])
+    }
+
+    fn run_with_env(&self, args: &[&str], envs: &[(&str, &std::ffi::OsStr)]) -> Output {
         let binary = self.root.join(format!("labnet{}", env::consts::EXE_SUFFIX));
         let mut attempts = 0;
 
         loop {
-            let result = Command::new(&binary)
+            let mut command = Command::new(&binary);
+            command
                 .args(args)
                 .current_dir(&self.elsewhere)
-                .env("HOME", &self.home)
-                .output();
+                .env("HOME", &self.home);
+            for (key, value) in envs {
+                command.env(key, value);
+            }
 
-            match result {
+            match command.output() {
                 Ok(output) => return output,
                 // Exec can briefly return ETXTBSY after a binary is copied.
                 Err(e) if e.kind() == ErrorKind::ExecutableFileBusy && attempts < 20 => {
@@ -141,6 +148,17 @@ fn complete_persists_state() {
     let output = fixture.run(&["list"]);
     assert_success(&output);
     assert!(stdout(&output).contains("[COMPLETED] alpha"));
+}
+
+#[test]
+fn status_fails_when_docker_is_unavailable() {
+    let fixture = Fixture::new("status-no-docker");
+    let empty = fixture.root.join("empty-bin");
+    fs::create_dir_all(&empty).unwrap();
+
+    let output = fixture.run_with_env(&["status"], &[("PATH", empty.as_os_str())]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("Failed to execute docker"));
 }
 
 #[test]

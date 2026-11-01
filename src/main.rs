@@ -265,16 +265,27 @@ fn get_running_labs(labs: &Path, scenarios: &[String]) -> Vec<String> {
     for name in scenarios {
         let compose_path = labs.join(name).join("docker-compose.yml");
 
-        match Command::new("docker")
+        let output = Command::new("docker")
             .args(["compose", "-f"])
             .arg(&compose_path)
             .args(["ps", "--quiet"])
             .output()
-        {
-            Ok(output) if output.status.success() && !output.stdout.is_empty() => {
-                running.push(name.clone());
-            }
-            _ => continue,
+            .unwrap_or_else(|e| {
+                eprintln!("Error: Failed to execute docker. {}", e);
+                exit(1);
+            });
+
+        if !output.status.success() {
+            eprintln!(
+                "Error: Failed to query status of scenario '{}'. {}",
+                name,
+                String::from_utf8_lossy(&output.stderr).trim()
+            );
+            exit(1);
+        }
+
+        if !output.stdout.is_empty() {
+            running.push(name.clone());
         }
     }
     running
