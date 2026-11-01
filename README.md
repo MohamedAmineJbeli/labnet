@@ -25,6 +25,11 @@ cargo build --release
 
 The compiled binary will be located at `target/release/labnet`.
 
+## Bundled scenarios
+
+* `dvwa` — [Damn Vulnerable Web Application](labs/dvwa/README.md), a deliberately vulnerable PHP/MySQL web application.
+* `juice-shop` — [OWASP Juice Shop](labs/juice-shop/README.md), an intentionally insecure web application used for security training.
+
 ## Usage
 
 A scenario is a directory under `labs/` that contains a `docker-compose.yml` file. `labs/template/` is a template for creating new scenarios and is not runnable itself.
