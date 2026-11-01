@@ -77,6 +77,12 @@ impl Fixture {
     fn state_path(&self) -> PathBuf {
         self.home.join(".labnet/state.json")
     }
+
+    fn write_state(&self, bytes: &[u8]) {
+        let dir = self.home.join(".labnet");
+        fs::create_dir_all(&dir).unwrap();
+        fs::write(dir.join("state.json"), bytes).unwrap();
+    }
 }
 
 impl Drop for Fixture {
@@ -135,6 +141,16 @@ fn complete_persists_state() {
     let output = fixture.run(&["list"]);
     assert_success(&output);
     assert!(stdout(&output).contains("[COMPLETED] alpha"));
+}
+
+#[test]
+fn unreadable_state_file_is_an_error() {
+    let fixture = Fixture::new("state-unreadable");
+    fixture.write_state(&[0xff]);
+
+    let output = fixture.run(&["list"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("Failed to read state file"));
 }
 
 #[test]

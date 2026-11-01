@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use std::fs;
+use std::io::ErrorKind;
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, exit};
 
@@ -300,7 +301,11 @@ fn read_completed() -> Vec<String> {
                 exit(1);
             }
         },
-        Err(_) => Vec::new(),
+        Err(e) if e.kind() == ErrorKind::NotFound => Vec::new(),
+        Err(e) => {
+            eprintln!("Error: Failed to read state file. {}", e);
+            exit(1);
+        }
     }
 }
 
