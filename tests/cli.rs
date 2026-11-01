@@ -169,6 +169,33 @@ fn complete_persists_state() {
     assert!(stdout(&output).contains("[COMPLETED] alpha"));
 }
 
+#[cfg(unix)]
+#[test]
+fn undo_completion_for_removed_scenario() {
+    let fixture = Fixture::new("undo-removed");
+
+    let output = fixture.run(&["complete", "alpha"]);
+    assert_success(&output);
+
+    fs::remove_dir_all(fixture.root.join("labs/alpha")).unwrap();
+
+    let output = fixture.run(&["complete", "alpha", "--undo"]);
+    assert_success(&output);
+    assert!(stdout(&output).contains("set as incomplete"));
+
+    let state = fs::read_to_string(fixture.state_path()).unwrap();
+    assert_eq!(state.trim(), "[]");
+}
+
+#[test]
+fn undo_rejects_invalid_scenario_names() {
+    let fixture = Fixture::new("undo-invalid");
+
+    let output = fixture.run(&["complete", "../alpha", "--undo"]);
+    assert!(!output.status.success());
+    assert!(stderr(&output).contains("Invalid scenario name '../alpha'."));
+}
+
 #[test]
 fn status_fails_when_docker_is_unavailable() {
     let fixture = Fixture::new("status-no-docker");

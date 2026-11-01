@@ -85,7 +85,11 @@ fn main() {
         }
 
         Commands::Complete { scenario, undo } => {
-            validate_scenario(&labs, &scenario);
+            if undo {
+                validate_scenario_name(&scenario);
+            } else {
+                validate_scenario(&labs, &scenario);
+            }
             let mut completed = read_completed();
 
             if undo {
@@ -145,11 +149,15 @@ fn is_valid_scenario_name(name: &str) -> bool {
         && components.next().is_none()
 }
 
-fn validate_scenario(labs: &Path, scenario: &str) -> PathBuf {
+fn validate_scenario_name(scenario: &str) {
     if !is_valid_scenario_name(scenario) {
         eprintln!("Error: Invalid scenario name '{}'.", scenario);
         exit(1);
     }
+}
+
+fn validate_scenario(labs: &Path, scenario: &str) -> PathBuf {
+    validate_scenario_name(scenario);
 
     let dir_path = labs.join(scenario);
     if !dir_path.is_dir() {
