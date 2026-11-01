@@ -37,13 +37,14 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+    let labs = labs_dir();
 
     match cli.command {
         Commands::Up { scenario } => {
-            let compose_path = validate_scenario(&scenario);
+            let compose_path = validate_scenario(&labs, &scenario);
             run_docker_compose(&compose_path, "up");
 
-            let mission_path = format!("labs/{}/MISSION.md", scenario);
+            let mission_path = labs.join(&scenario).join("MISSION.md");
             match fs::read_to_string(&mission_path) {
                 Ok(content) => println!("\n{}\n", content),
                 Err(_) => println!("Note: No MISSION.md found for this scenario."),
@@ -51,17 +52,17 @@ fn main() {
         }
 
         Commands::Down { scenario } => {
-            let compose_path = validate_scenario(&scenario);
+            let compose_path = validate_scenario(&labs, &scenario);
             run_docker_compose(&compose_path, "down");
         }
 
         Commands::List => {
-            list_scenarios();
+            list_scenarios(&labs);
         }
 
         Commands::Hint { scenario } => {
-            let _ = validate_scenario(&scenario);
-            let hint_path = format!("labs/{}/HINTS.md", scenario);
+            validate_scenario(&labs, &scenario);
+            let hint_path = labs.join(&scenario).join("HINTS.md");
             match fs::read_to_string(&hint_path) {
                 Ok(content) => println!("{}", content),
                 Err(_) => {
@@ -72,8 +73,8 @@ fn main() {
         }
 
         Commands::Solution { scenario } => {
-            let _ = validate_scenario(&scenario);
-            let solution_path = format!("labs/{}/SOLUTION.md", scenario);
+            validate_scenario(&labs, &scenario);
+            let solution_path = labs.join(&scenario).join("SOLUTION.md");
             match fs::read_to_string(&solution_path) {
                 Ok(content) => println!("{}", content),
                 Err(_) => {
@@ -84,7 +85,7 @@ fn main() {
         }
 
         Commands::Complete { scenario, undo } => {
-            let _ = validate_scenario(&scenario);
+            validate_scenario(&labs, &scenario);
             let mut completed = read_completed();
 
             if undo {
@@ -112,8 +113,8 @@ fn main() {
 
         Commands::Status => {
             let completed = read_completed();
-            let scenarios = scenario_names();
-            let running = get_running_labs(&scenarios);
+            let scenarios = scenario_names(&labs);
+            let running = get_running_labs(&labs, &scenarios);
 
             for name in scenarios {
                 let is_running = running.contains(&name);
@@ -136,15 +137,15 @@ fn main() {
     };
 }
 
-fn validate_scenario(scenario: &str) -> String {
-    let dir_path = format!("labs/{}", scenario);
-    if !Path::new(&dir_path).is_dir() {
+fn validate_scenario(labs: &Path, scenario: &str) -> PathBuf {
+    let dir_path = labs.join(scenario);
+    if !dir_path.is_dir() {
         eprintln!("Error: Scenario '{}' not found.", scenario);
         exit(1);
     }
 
-    let compose_path = format!("{}/docker-compose.yml", dir_path);
-    if !Path::new(&compose_path).is_file() {
+    let compose_path = dir_path.join("docker-compose.yml");
+    if !compose_path.is_file() {
         eprintln!(
             "Error: docker-compose.yml not found in scenario '{}'.",
             scenario
@@ -154,17 +155,22 @@ fn validate_scenario(scenario: &str) -> String {
     compose_path
 }
 
-fn run_docker_compose(compose_path: &str, action: &str) {
-    let args = match action {
-        "up" => vec!["compose", "-f", compose_path, "up", "-d"],
-        "down" => vec!["compose", "-f", compose_path, "down"],
+fn run_docker_compose(compose_path: &Path, action: &str) {
+    let args: &[&str] = match action {
+        "up" => &["up", "-d"],
+        "down" => &["down"],
         _ => {
             eprintln!("Error: Invalid action '{}'.", action);
             exit(1);
         }
     };
 
-    match Command::new("docker").args(&args).status() {
+    match Command::new("docker")
+        .args(["compose", "-f"])
+        .arg(compose_path)
+        .args(args)
+        .status()
+    {
         Ok(exit_status) => {
             if !exit_status.success() {
                 exit(1);
@@ -177,15 +183,42 @@ fn run_docker_compose(compose_path: &str, action: &str) {
     }
 }
 
+fn resolve_labs_dir(exe_dir: Option<&Path>, cwd: &Path) -> Option<PathBuf> {
+    if let Some(dir) = exe_dir {
+        let candidate = dir.join("labs");
+        if candidate.is_dir() {
+            return Some(candidate);
+        }
+    }
+
+    let candidate = cwd.join("labs");
+    candidate.is_dir().then_some(candidate)
+}
+
+fn labs_dir() -> PathBuf {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|path| path.parent().map(Path::to_path_buf));
+
+    match resolve_labs_dir(exe_dir.as_deref(), &cwd) {
+        Some(path) => path,
+        None => {
+            eprintln!("Error: Could not find the 'labs' directory.");
+            exit(1);
+        }
+    }
+}
+
 fn is_scenario_dir(path: &Path) -> bool {
     path.is_dir() && path.join("docker-compose.yml").is_file()
 }
 
-fn scenario_names() -> Vec<String> {
-    let entries = match fs::read_dir("labs") {
+fn scenario_names(labs: &Path) -> Vec<String> {
+    let entries = match fs::read_dir(labs) {
         Ok(entries) => entries,
         Err(_) => {
-            eprintln!("Error: 'labs/' directory not found.");
+            eprintln!("Error: Could not read labs directory '{}'.", labs.display());
             exit(1);
         }
     };
@@ -197,13 +230,13 @@ fn scenario_names() -> Vec<String> {
         .collect()
 }
 
-fn list_scenarios() {
+fn list_scenarios(labs: &Path) {
     let completed = read_completed();
     if completed.is_empty() {
         println!("Note: No labs completed yet.");
     }
 
-    for name in scenario_names() {
+    for name in scenario_names(labs) {
         if completed.contains(&name) {
             println!("[COMPLETED] {}", name);
         } else {
@@ -212,13 +245,15 @@ fn list_scenarios() {
     }
 }
 
-fn get_running_labs(scenarios: &[String]) -> Vec<String> {
+fn get_running_labs(labs: &Path, scenarios: &[String]) -> Vec<String> {
     let mut running = Vec::new();
     for name in scenarios {
-        let compose_path = format!("labs/{}/docker-compose.yml", name);
+        let compose_path = labs.join(name).join("docker-compose.yml");
 
         match Command::new("docker")
-            .args(["compose", "-f", &compose_path, "ps", "--quiet"])
+            .args(["compose", "-f"])
+            .arg(&compose_path)
+            .args(["ps", "--quiet"])
             .output()
         {
             Ok(output) if output.status.success() && !output.stdout.is_empty() => {
@@ -286,5 +321,22 @@ mod tests {
     fn template_directory_is_not_a_scenario() {
         assert!(is_scenario_dir(Path::new("labs/dvwa")));
         assert!(!is_scenario_dir(Path::new("labs/template")));
+    }
+
+    #[test]
+    fn executable_adjacent_labs_directory_takes_precedence() {
+        let labs = resolve_labs_dir(Some(Path::new(".")), Path::new("missing"));
+        assert_eq!(labs, Some(Path::new(".").join("labs")));
+    }
+
+    #[test]
+    fn working_directory_is_used_when_no_labs_beside_executable() {
+        let labs = resolve_labs_dir(Some(Path::new("missing")), Path::new("."));
+        assert_eq!(labs, Some(Path::new(".").join("labs")));
+    }
+
+    #[test]
+    fn missing_labs_directory_returns_none() {
+        assert_eq!(resolve_labs_dir(None, Path::new("missing")), None);
     }
 }

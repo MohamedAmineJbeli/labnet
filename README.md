@@ -26,7 +26,7 @@ The compiled binary will be located at `target/release/labnet`.
 
 A scenario is a directory under `labs/` that contains a `docker-compose.yml` file. `labs/template/` is a template for creating new scenarios and is not runnable itself.
 
-Run `labnet` from the repository root; scenario paths are resolved relative to the current directory.
+LabNet looks for `labs/` next to the `labnet` executable first, then in the current working directory.
 
 List available scenarios:
 ```bash
