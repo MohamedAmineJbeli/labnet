@@ -196,6 +196,7 @@ fn undo_rejects_invalid_scenario_names() {
     assert!(stderr(&output).contains("Invalid scenario name '../alpha'."));
 }
 
+#[cfg(unix)]
 #[test]
 fn status_fails_when_docker_is_unavailable() {
     let fixture = Fixture::new("status-no-docker");
@@ -207,6 +208,7 @@ fn status_fails_when_docker_is_unavailable() {
     assert!(stderr(&output).contains("Failed to execute docker"));
 }
 
+#[cfg(unix)]
 #[test]
 fn unreadable_state_file_is_an_error() {
     let fixture = Fixture::new("state-unreadable");
