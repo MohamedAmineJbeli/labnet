@@ -2,6 +2,10 @@
 name = "labnet"
 version = "0.5.0"
 edition = "2024"
+rust-version = "1.85"
+description = "Run local security lab scenarios with Docker."
+repository = "https://github.com/MohamedAmineJbeli/labnet"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
