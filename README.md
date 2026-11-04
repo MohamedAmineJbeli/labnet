@@ -10,7 +10,7 @@ Labnet uses Docker Compose to start isolated, pre-configured security scenarios 
 
 ## Installation
 
-Pre-compiled archives for Linux, macOS, and Windows are available on the [Releases](../../releases) page. Each archive contains the `labnet` binary and the `labs/` directory.
+Pre-compiled archives for Linux, macOS, and Windows are available on the [Releases](../../releases) page. Each archive contains the `labnet` binary, the `labs/` directory, `README.md`, and the license files.
 
 Extract the archive and run the binary. Keep `labs/` next to the executable; LabNet looks there first.
 
@@ -28,6 +28,7 @@ The compiled binary will be located at `target/release/labnet`.
 ## Bundled scenarios
 
 * `dvwa` — [Damn Vulnerable Web Application](labs/dvwa/README.md), a deliberately vulnerable PHP/MySQL web application.
+* `dvwa-command-injection` — [DVWA Command Injection](labs/dvwa-command-injection/README.md), an exercise in OS command injection.
 * `juice-shop` — [OWASP Juice Shop](labs/juice-shop/README.md), an intentionally insecure web application used for security training.
 
 ## Usage
@@ -84,3 +85,16 @@ Completion state is stored in `~/.labnet/state.json`.
 ## Creating scenarios
 
 See [labs/template/README.md](labs/template/README.md).
+
+## License
+
+Licensed under either of
+
+* Apache License, Version 2.0 ([LICENSE-APACHE](LICENSE-APACHE))
+* MIT license ([LICENSE-MIT](LICENSE-MIT))
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in this project by you, as defined in the Apache-2.0 license, shall be dual licensed as above, without any additional terms or conditions.
+
+The Docker images referenced by the scenarios are third-party works with their own licenses. Juice Shop is MIT licensed; DVWA is GPL-3.0 licensed.

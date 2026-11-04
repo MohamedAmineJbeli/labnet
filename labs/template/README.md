@@ -9,7 +9,7 @@ LabNet executes `docker compose -f labs/<lab-name>/docker-compose.yml up -d`. If
 
 # Optional Structure
 
-To improve the user experience,the following files can be included in the scenario directory:
+To improve the user experience, the following files can be included in the scenario directory:
 
 - `MISSION.md`: A brief description of the lab's objective and initial steps. This gets printed to the terminal when the lab starts.
 
