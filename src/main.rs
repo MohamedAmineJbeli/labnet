@@ -90,6 +90,11 @@ fn main() {
             } else {
                 validate_scenario(&labs, &scenario);
             }
+            let scenario = if undo {
+                scenario
+            } else {
+                canonical_scenario_name(&scenario_names(&labs), &scenario).unwrap_or(scenario)
+            };
             let mut completed = read_completed();
 
             if undo {
@@ -154,6 +159,14 @@ fn validate_scenario_name(scenario: &str) {
         eprintln!("Error: Invalid scenario name '{}'.", scenario);
         exit(1);
     }
+}
+
+fn canonical_scenario_name(names: &[String], input: &str) -> Option<String> {
+    names
+        .iter()
+        .find(|name| name.as_str() == input)
+        .or_else(|| names.iter().find(|name| name.eq_ignore_ascii_case(input)))
+        .cloned()
 }
 
 fn validate_scenario(labs: &Path, scenario: &str) -> PathBuf {
@@ -359,6 +372,25 @@ mod tests {
     fn template_directory_is_not_a_scenario() {
         assert!(is_scenario_dir(Path::new("labs/dvwa")));
         assert!(!is_scenario_dir(Path::new("labs/template")));
+    }
+
+    #[test]
+    fn canonical_scenario_name_prefers_exact_match() {
+        let names = vec!["alpha".to_string(), "Alpha".to_string()];
+
+        assert_eq!(
+            canonical_scenario_name(&names, "Alpha"),
+            Some("Alpha".to_string())
+        );
+        assert_eq!(
+            canonical_scenario_name(&names, "alpha"),
+            Some("alpha".to_string())
+        );
+        assert_eq!(
+            canonical_scenario_name(&names, "ALPHA"),
+            Some("alpha".to_string())
+        );
+        assert_eq!(canonical_scenario_name(&names, "missing"), None);
     }
 
     #[test]
