@@ -90,12 +90,14 @@ fn main() {
             } else {
                 validate_scenario(&labs, &scenario);
             }
+            let mut completed = read_completed();
             let scenario = if undo {
-                scenario
+                canonical_scenario_name(&completed, &scenario)
+                    .or_else(|| canonical_scenario_name(&scenario_names(&labs), &scenario))
+                    .unwrap_or(scenario)
             } else {
                 canonical_scenario_name(&scenario_names(&labs), &scenario).unwrap_or(scenario)
             };
-            let mut completed = read_completed();
 
             if undo {
                 let initial_len = completed.len();
@@ -107,7 +109,7 @@ fn main() {
                 write_completed(&completed);
                 println!("Scenario '{}' set as incomplete.", scenario);
             } else {
-                if completed.contains(&scenario) {
+                if canonical_scenario_name(&completed, &scenario).is_some() {
                     println!(
                         "Note: Scenario '{}' is already marked as completed.",
                         scenario
@@ -127,7 +129,7 @@ fn main() {
 
             for name in scenarios {
                 let is_running = running.contains(&name);
-                let is_completed = completed.contains(&name);
+                let is_completed = canonical_scenario_name(&completed, &name).is_some();
 
                 let mut status = String::new();
                 if is_running {
@@ -165,7 +167,13 @@ fn canonical_scenario_name(names: &[String], input: &str) -> Option<String> {
     names
         .iter()
         .find(|name| name.as_str() == input)
-        .or_else(|| names.iter().find(|name| name.eq_ignore_ascii_case(input)))
+        .or_else(|| {
+            if cfg!(windows) {
+                names.iter().find(|name| name.eq_ignore_ascii_case(input))
+            } else {
+                None
+            }
+        })
         .cloned()
 }
 
@@ -273,7 +281,7 @@ fn list_scenarios(labs: &Path) {
     }
 
     for name in scenario_names(labs) {
-        if completed.contains(&name) {
+        if canonical_scenario_name(&completed, &name).is_some() {
             println!("[COMPLETED] {}", name);
         } else {
             println!("{}", name);
@@ -386,11 +394,22 @@ mod tests {
             canonical_scenario_name(&names, "alpha"),
             Some("alpha".to_string())
         );
+        assert_eq!(canonical_scenario_name(&names, "missing"), None);
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn canonical_scenario_name_matches_case_insensitively_on_windows() {
+        let names = vec!["alpha".to_string()];
+
+        assert_eq!(
+            canonical_scenario_name(&names, "Alpha"),
+            Some("alpha".to_string())
+        );
         assert_eq!(
             canonical_scenario_name(&names, "ALPHA"),
             Some("alpha".to_string())
         );
-        assert_eq!(canonical_scenario_name(&names, "missing"), None);
     }
 
     #[test]
