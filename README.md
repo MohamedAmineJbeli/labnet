@@ -29,6 +29,7 @@ The compiled binary will be located at `target/release/labnet`.
 
 * `dvwa` — [Damn Vulnerable Web Application](labs/dvwa/README.md), a deliberately vulnerable PHP/MySQL web application.
 * `dvwa-command-injection` — [DVWA Command Injection](labs/dvwa-command-injection/README.md), an exercise in OS command injection.
+* `dvwa-file-inclusion` — [DVWA File Inclusion](labs/dvwa-file-inclusion/README.md), an exercise in local file inclusion.
 * `juice-shop` — [OWASP Juice Shop](labs/juice-shop/README.md), an intentionally insecure web application used for security training.
 
 ## Usage
