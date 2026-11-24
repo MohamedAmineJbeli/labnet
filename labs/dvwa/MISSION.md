@@ -1,12 +1,12 @@
 # Objective
 Exploit a SQL injection vulnerability to extract user credentials from the database.
 
-# Access
+# Access
 URL: http://127.0.0.1:8081
 Username: admin
 Password: password
 
-# Steps
+# Steps
 1. Open http://127.0.0.1:8081/setup.php and click 'Create / Reset Database'.
 2. Log in using the credentials above.
 3. Navigate to DVWA Security on the left menu and set the security level to 'low'.

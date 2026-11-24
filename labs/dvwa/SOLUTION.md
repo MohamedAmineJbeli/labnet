@@ -3,7 +3,7 @@
 The underlying SQL query executed by the application is:
 `SELECT first_name, last_name FROM users WHERE user_id = '$id'`
 
-To extract credentials, we inject a `UNION` based payload. The `UNION` operator combines the result-set of two or more `SELECT` statements. 
+To extract credentials, we inject a `UNION` based payload. The `UNION` operator combines the result-set of two or more `SELECT` statements.
 
 Input the following into the User ID field:
 `1' UNION SELECT user, password FROM users-- -`
