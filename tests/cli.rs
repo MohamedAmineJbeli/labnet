@@ -321,3 +321,23 @@ fn status_detects_running_scenario() {
     assert!(out.contains("[RUNNING] alpha"), "stdout: {out}");
     assert!(out.contains("[STOPPED] zeta"), "stdout: {out}");
 }
+
+#[cfg(unix)]
+#[test]
+fn up_reports_compose_failure_without_mission() {
+    use std::os::unix::fs::PermissionsExt;
+
+    let fixture = Fixture::new("up-failure");
+    let bin = fixture.root.join("fail-bin");
+    fs::create_dir_all(&bin).unwrap();
+    let script = bin.join("docker");
+    fs::write(&script, "#!/bin/sh\nexit 1\n").unwrap();
+
+    let mut permissions = fs::metadata(&script).unwrap().permissions();
+    permissions.set_mode(0o755);
+    fs::set_permissions(&script, permissions).unwrap();
+
+    let output = fixture.run_with_env(&["up", "alpha"], &[("PATH", bin.as_os_str())]);
+    assert!(!output.status.success());
+    assert!(!stdout(&output).contains("Alpha mission"));
+}
