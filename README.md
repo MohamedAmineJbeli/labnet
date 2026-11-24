@@ -16,7 +16,7 @@ Extract the archive and run the binary. Keep `labs/` next to the executable; Lab
 
 ## Building from source
 
-If you prefer to build from source or want to contribute, you need [Rust](https://rust-lang.org/tools/install/) installed.
+If you prefer to build from source or want to contribute, you need [Rust](https://rust-lang.org/tools/install/) 1.88 or newer installed.
 ```bash
 git clone https://github.com/MohamedAmineJbeli/labnet.git
 cd labnet
